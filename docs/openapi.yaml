@@ -1,0 +1,145 @@
+openapi: 3.0.3
+info:
+  title: SecureBank API
+  version: 1.0.0
+  description: Educational local banking simulation API.
+servers:
+  - url: http://localhost:4000
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+  /api/auth/register:
+    post:
+      summary: Register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Register"
+      responses:
+        "201":
+          description: Created
+  /api/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Login"
+      responses:
+        "200":
+          description: Logged in
+  /api/accounts:
+    get:
+      summary: List my accounts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Accounts
+    post:
+      summary: Create account
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Account created
+/api/accounts/{id}/deposit:
+  post:
+    summary: Deposit
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - amount
+            properties:
+              amount:
+                type: number
+                example: 500
+              description:
+                type: string
+                example: Test deposit
+    responses:
+      "200":
+        description: Deposit completed
+  /api/accounts/{id}/withdraw:
+    post:
+      summary: Withdraw
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Withdrawal completed
+  /api/transfers:
+    post:
+      summary: Transfer money
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Transfer completed
+  /api/transactions:
+    get:
+      summary: List my transactions
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Transaction list
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Register:
+      type: object
+      required: [email, name, password]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        password:
+          type: string
+          minLength: 8
+    Login:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string

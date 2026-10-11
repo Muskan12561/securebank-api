@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         UserRole   @default(CUSTOMER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  accounts     Account[]
+  sentTransfers Transfer[] @relation("Sender")
+  receivedTransfers Transfer[] @relation("Receiver")
+}
+
+model Account {
+  id           String        @id @default(uuid())
+  accountNumber String       @unique
+  userId       String
+  balance      Decimal       @default(0) @db.Decimal(18, 2)
+  currency     String        @default("INR")
+  status       AccountStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  outgoing     Transfer[]    @relation("FromAccount")
+  incoming     Transfer[]    @relation("ToAccount")
+
+  @@index([userId])
+}
+
+model Transaction {
+  id              String            @id @default(uuid())
+  accountId       String
+  type            TransactionType
+  status          TransactionStatus @default(COMPLETED)
+  amount          Decimal           @db.Decimal(18, 2)
+  balanceAfter    Decimal           @db.Decimal(18, 2)
+  reference       String            @unique
+  description     String?
+  createdAt       DateTime          @default(now())
+  account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transferId      String?
+  transfer        Transfer?         @relation(fields: [transferId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, createdAt])
+}
+
+model Transfer {
+  id              String            @id @default(uuid())
+  fromAccountId   String
+  toAccountId     String
+  amount          Decimal           @db.Decimal(18, 2)
+  status          TransactionStatus @default(COMPLETED)
+  idempotencyKey   String            @unique
+  description     String?
+  createdAt       DateTime          @default(now())
+  senderId        String
+  receiverId      String
+  fromAccount     Account           @relation("FromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccount       Account           @relation("ToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+  sender          User              @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver        User              @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([senderId])
+  @@index([receiverId])
+}
